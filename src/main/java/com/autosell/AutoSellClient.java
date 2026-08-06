@@ -13,7 +13,7 @@ import org.lwjgl.glfw.GLFW;
 public class AutoSellClient implements ClientModInitializer {
 
     private static final String SELL_COMMAND = "sell";
-    private static final int SELL_COOLDOWN_TICKS = 20;
+    private static final int SELL_COOLDOWN_TICKS = 30;
     private static final int INVENTORY_SIZE_TO_CHECK = 36;
 
     private static boolean enabled = false;
