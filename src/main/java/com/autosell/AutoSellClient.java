@@ -7,17 +7,18 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.item.ItemStack;
+import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 
 public class AutoSellClient implements ClientModInitializer {
 
     private static final String SELL_COMMAND = "sell";
-    private static final int SELL_COOLDOWN_TICKS = 30;
-    private static final int INVENTORY_SIZE_TO_CHECK = 36;
+    private static final int WORK_HOTBAR_SLOT = 8;
+    private static final int RESTART_COOLDOWN_TICKS = 30; // 1,5 giay
 
     private static boolean enabled = false;
-    private static int cooldown = 0;
+    private static int restartCooldown = 0;
     private static KeyBinding toggleKey;
 
     @Override
@@ -36,29 +37,51 @@ public class AutoSellClient implements ClientModInitializer {
         while (toggleKey.wasPressed()) {
             enabled = !enabled;
             notifyPlayer(client, enabled
-                    ? "§a[AutoSell] Đã BẬT - sẽ tự /sell khi kho đầy"
-                    : "§c[AutoSell] Đã TẮT");
+                    ? "\u00a7a[AutoSell] Da BAT"
+                    : "\u00a7c[AutoSell] Da TAT");
         }
 
         if (!enabled) return;
         if (client.player == null || client.getNetworkHandler() == null) return;
 
-        if (cooldown > 0) {
-            cooldown--;
+        if (restartCooldown > 0) {
+            restartCooldown--;
             return;
         }
 
         if (isInventoryFull(client)) {
-            client.player.networkHandler.sendChatCommand(SELL_COMMAND);
-            cooldown = SELL_COOLDOWN_TICKS;
+            sellEverythingNow(client);
+            restartCooldown = RESTART_COOLDOWN_TICKS;
         }
+    }
+
+    private static void sellEverythingNow(MinecraftClient client) {
+        var inventory = client.player.getInventory();
+        int syncId = client.player.playerScreenHandler.syncId;
+
+        for (int i = 0; i < 36; i++) {
+            ItemStack stack = inventory.getStack(i);
+            if (stack.isEmpty()) continue;
+
+            if (i < 9) {
+                inventory.selectedSlot = i;
+            } else {
+                client.interactionManager.clickSlot(syncId, i, WORK_HOTBAR_SLOT,
+                        SlotActionType.SWAP, client.player);
+                inventory.selectedSlot = WORK_HOTBAR_SLOT;
+            }
+
+            client.player.networkHandler.sendChatCommand(SELL_COMMAND);
+        }
+
+        // Gia lap bam ESC de dong man hinh (neu dang mo GUI nao do)
+        client.setScreen(null);
     }
 
     private static boolean isInventoryFull(MinecraftClient client) {
         var inventory = client.player.getInventory();
-        for (int i = 0; i < INVENTORY_SIZE_TO_CHECK; i++) {
-            ItemStack stack = inventory.getStack(i);
-            if (stack.isEmpty()) {
+        for (int i = 0; i < 36; i++) {
+            if (inventory.getStack(i).isEmpty()) {
                 return false;
             }
         }
